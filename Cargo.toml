@@ -1,0 +1,12 @@
+[package]
+name = "bobo-ro-ctd"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+eframe = "0.33.3"
+egui = "0.33.3"
+fs_extra = "1.3.0"
+image = "0.25"
+opencv = "0.98.1"
+scrap = "0.5"
