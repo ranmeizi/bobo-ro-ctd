@@ -183,7 +183,7 @@ impl MyEguiApp {
         }
 
         // 100 ms 更新一下
-        ctx.request_repaint_after(Duration::from_millis(100));
+        ctx.request_repaint_after(Duration::from_millis(250));
     }
 }
 
