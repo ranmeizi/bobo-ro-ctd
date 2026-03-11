@@ -15,6 +15,17 @@ jobs:
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
       
+      - name: 缓存 Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+      
       - name: 安装 OpenCV
         run: brew install opencv
       
@@ -35,19 +46,43 @@ jobs:
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
       
-      - name: 设置 vcpkg
-        uses: lukka/run-vcpkg@v11
+      - name: 缓存 Cargo
+        uses: actions/cache@v4
         with:
-          vcpkgDirectory: '${{ runner.workspace }}/b/vcpkg'
-          vcpkgGitCommitId: '3fd3b0e53'
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
       
-      - name: 安装 OpenCV
-        run: vcpkg install opencv:x64-windows
+      - name: 缓存 vcpkg
+        uses: actions/cache@v4
+        with:
+          path: D:\vcpkg
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+      
+      - name: 安装 vcpkg
+        run: |
+          if (!(Test-Path "D:\vcpkg\.git")) {
+            git clone https://github.com/Microsoft/vcpkg.git D:\vcpkg
+            cd D:\vcpkg
+            .\bootstrap-vcpkg.bat
+          }
+        shell: powershell
+      
+      - name: 安装 OpenCV（通过 vcpkg）
+        run: |
+          D:\vcpkg\vcpkg.exe install opencv:x64-windows --recurse
+        shell: cmd
       
       - name: 为 Windows 构建
         run: |
-          $env:VCPKG_ROOT="${{ runner.workspace }}\b\vcpkg"
-          $env:OPENCV_DIR="${{ runner.workspace }}\b\vcpkg\installed\x64-windows"
+          $env:VCPKG_ROOT="D:\vcpkg"
+          $env:OPENCV_DIR="D:\vcpkg\installed\x64-windows"
           cargo build --release
       
       - name: 上传 Windows 构建产物
