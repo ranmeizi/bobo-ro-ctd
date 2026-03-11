@@ -22,7 +22,7 @@ jobs:
         run: cargo build --release
       
       - name: 上传 macOS 构建产物
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bobo-ro-ctd-macos
           path: target/release/bobo-ro-ctd
@@ -47,10 +47,11 @@ jobs:
       - name: 为 Windows 构建
         run: |
           $env:VCPKG_ROOT="${{ runner.workspace }}\b\vcpkg"
+          $env:OPENCV_DIR="${{ runner.workspace }}\b\vcpkg\installed\x64-windows"
           cargo build --release
       
       - name: 上传 Windows 构建产物
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bobo-ro-ctd-windows
           path: target/release/bobo-ro-ctd.exe
