@@ -1,0 +1,56 @@
+name: 跨平台构建 (macOS & Windows)
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: 安装 OpenCV
+        run: brew install opencv
+      
+      - name: 为 macOS 构建
+        run: cargo build --release
+      
+      - name: 上传 macOS 构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: bobo-ro-ctd-macos
+          path: target/release/bobo-ro-ctd
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: 设置 vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: '${{ runner.workspace }}/b/vcpkg'
+          vcpkgGitCommitId: '3fd3b0e53'
+      
+      - name: 安装 OpenCV
+        run: vcpkg install opencv:x64-windows
+      
+      - name: 为 Windows 构建
+        run: |
+          $env:VCPKG_ROOT="${{ runner.workspace }}\b\vcpkg"
+          cargo build --release
+      
+      - name: 上传 Windows 构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: bobo-ro-ctd-windows
+          path: target/release/bobo-ro-ctd.exe

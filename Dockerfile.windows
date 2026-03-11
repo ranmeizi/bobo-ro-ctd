@@ -1,0 +1,57 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 安装基础工具和依赖
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    build-essential \
+    cmake \
+    mingw-w64 \
+    mingw-w64-tools \
+    pkg-config \
+    git \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# 添加 Windows 目标
+RUN rustup target add x86_64-pc-windows-gnu
+
+# 下载并编译 OpenCV for MinGW
+WORKDIR /tmp
+RUN git clone --depth 1 --branch 4.13.0 https://github.com/opencv/opencv.git && \
+    cd opencv && \
+    mkdir build && \
+    cd build && \
+    cmake -DCMAKE_TOOLCHAIN_FILE=../platforms/linux/mingw_toolchain.cmake \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=/usr/x86_64-w64-mingw32 \
+          -DENABLE_PRECOMPILED_HEADERS=OFF \
+          -DBUILD_SHARED_LIBS=OFF \
+          .. && \
+    make -j$(nproc) && \
+    make install
+
+# 设置环境变量
+ENV OPENCV_DIR=/usr/x86_64-w64-mingw32
+ENV PKG_CONFIG_PATH=/usr/x86_64-w64-mingw32/lib/pkgconfig:$PKG_CONFIG_PATH
+ENV CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc-posix
+ENV CXX_x86_64_pc_windows_gnu=x86_64-w64-mingw32-g++-posix
+ENV CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc-posix
+
+WORKDIR /project
+
+# 复制项目
+COPY . .
+
+# 构建
+RUN cargo build --release --target x86_64-pc-windows-gnu
+
+# 输出文件
+CMD cp target/x86_64-pc-windows-gnu/release/bobo-ro-ctd.exe /output/ && \
+    echo "构建完成！输出文件: bobo-ro-ctd.exe"
