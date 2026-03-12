@@ -171,9 +171,6 @@ impl MyEguiApp {
             let elapsed = now.duration_since(start);
             let elapsed_secs = elapsed.as_secs();
 
-            println!("elapsed_secs: {}", elapsed_secs);
-            println!("counting_seconds: {}", self.counting_seconds);
-
             self.remind_seconds = Some(self.counting_seconds - elapsed_secs as usize);
 
             if self.counting_seconds - elapsed_secs as usize <= 0 {

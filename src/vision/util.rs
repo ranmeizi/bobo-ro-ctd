@@ -6,8 +6,8 @@ use std::time::Duration;
 
 use opencv::core::{self, AlgorithmHint, Vector};
 use opencv::imgcodecs;
-use opencv::prelude::*;
 use opencv::imgproc;
+use opencv::prelude::*;
 
 /// 从文件路径读取图片，返回 OpenCV BGR Mat（imread 方式）
 pub fn test_get_screenshot() -> opencv::Result<Mat> {
@@ -151,12 +151,17 @@ pub fn count_red_blocks(src: &Mat) -> opencv::Result<usize> {
         let area = *stats.at_2d::<i32>(label, imgproc::CC_STAT_AREA)? as f32;
 
         // 过滤掉太小的噪声
-        if area < 10.0 {
+        if area < 36.0 {
             continue;
         }
         // 宽高都必须为正
-        if w <= 0.0 || h <= 0.0 {
+        if w <= 5.0 || h <= 5.0 {
             continue;
+        }
+
+        // 过滤掉太大的
+        if w >= 50.0 || h >= 50.0 {
+            continue
         }
 
         // 宽高比接近 1：近似正方形
@@ -179,5 +184,4 @@ fn test_oneloop() {
 
     let cnt = count_red_blocks(&image).unwrap();
     println!("红色地块数量: {}", cnt);
-
 }
