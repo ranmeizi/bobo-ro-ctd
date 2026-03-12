@@ -47,6 +47,33 @@ jobs:
         run: |
           D:\vcpkg\vcpkg.exe install opencv:x64-windows --recurse
         shell: cmd
+
+      - name: 调试 OpenCV DLL 列表
+        shell: powershell
+        run: |
+          $opencvCandidateDirs = @(
+            "D:\vcpkg\installed\x64-windows\bin",
+            "D:\vcpkg\installed\x64-windows\tools\opencv\bin",
+            "D:\vcpkg\packages\opencv_x64-windows\bin"
+          )
+
+          Write-Host "=== OpenCV candidate directories ==="
+          foreach ($dir in $opencvCandidateDirs) {
+            Write-Host "$dir (exists: $(Test-Path $dir))"
+          }
+
+          Write-Host "=== Matched opencv*.dll files ==="
+          foreach ($dir in $opencvCandidateDirs) {
+            if (Test-Path $dir) {
+              Write-Host "--- $dir ---"
+              $dlls = Get-ChildItem -Path $dir -Filter "opencv*.dll" -File -ErrorAction SilentlyContinue
+              if ($dlls.Count -eq 0) {
+                Write-Host "(none)"
+              } else {
+                $dlls | Select-Object Name, Length, FullName | Format-Table -AutoSize
+              }
+            }
+          }
       
       - name: 为 Windows 构建
         run: |
@@ -68,12 +95,37 @@ jobs:
           Copy-Item "assets/fonts/NotoSansSC-Regular.otf" "$packageDir/assets/fonts/NotoSansSC-Regular.otf" -Force
 
           # 3) 复制 OpenCV 运行时 DLL 到 exe 同层
-          $opencvBin = "D:\vcpkg\installed\x64-windows\bin"
-          $opencvDlls = Get-ChildItem -Path $opencvBin -Filter "opencv_world*.dll" -ErrorAction Stop
-          if ($opencvDlls.Count -eq 0) {
-            throw "未找到 opencv_world*.dll，请检查 vcpkg 安装目录。"
+          # 先找 opencv_world*.dll，找不到则回退到 opencv_*.dll（分模块构建）
+          $opencvCandidateDirs = @(
+            "D:\vcpkg\installed\x64-windows\bin",
+            "D:\vcpkg\installed\x64-windows\tools\opencv\bin",
+            "D:\vcpkg\packages\opencv_x64-windows\bin"
+          )
+
+          $opencvBin = $null
+          foreach ($dir in $opencvCandidateDirs) {
+            if (Test-Path $dir) {
+              $opencvBin = $dir
+              break
+            }
           }
-          Copy-Item "$opencvBin\opencv_world*.dll" $packageDir -Force
+
+          if (-not $opencvBin) {
+            throw "OpenCV bin directory not found under D:\vcpkg."
+          }
+
+          $opencvDlls = Get-ChildItem -Path $opencvBin -Filter "opencv_world*.dll" -File -ErrorAction SilentlyContinue
+          if ($opencvDlls.Count -eq 0) {
+            $opencvDlls = Get-ChildItem -Path $opencvBin -Filter "opencv_*.dll" -File -ErrorAction SilentlyContinue
+          }
+
+          if ($opencvDlls.Count -eq 0) {
+            Write-Host "No OpenCV runtime DLL found in $opencvBin"
+            Get-ChildItem -Path $opencvBin | Select-Object -First 50 | Format-Table -AutoSize
+            throw "OpenCV runtime DLL not found (opencv_world*.dll or opencv_*.dll)."
+          }
+
+          Copy-Item $opencvDlls.FullName $packageDir -Force
       
       - name: 上传 Windows 构建产物
         uses: actions/upload-artifact@v4
