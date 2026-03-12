@@ -53,9 +53,30 @@ jobs:
           $env:VCPKG_ROOT="D:\vcpkg"
           $env:OPENCV_DIR="D:\vcpkg\installed\x64-windows"
           cargo build --release
+
+      - name: 整理 Windows 打包目录
+        shell: powershell
+        run: |
+          $packageDir = "target/release/package"
+          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
+          New-Item -ItemType Directory -Force -Path "$packageDir/assets/fonts" | Out-Null
+
+          # 1) exe 放到打包根目录
+          Copy-Item "target/release/bobo-ro-ctd.exe" "$packageDir/bobo-ro-ctd.exe" -Force
+
+          # 2) 字体按相对路径放到 exe 同层下的 assets/fonts/
+          Copy-Item "assets/fonts/NotoSansSC-Regular.otf" "$packageDir/assets/fonts/NotoSansSC-Regular.otf" -Force
+
+          # 3) 复制 OpenCV 运行时 DLL 到 exe 同层
+          $opencvBin = "D:\vcpkg\installed\x64-windows\bin"
+          $opencvDlls = Get-ChildItem -Path $opencvBin -Filter "opencv_world*.dll" -ErrorAction Stop
+          if ($opencvDlls.Count -eq 0) {
+            throw "未找到 opencv_world*.dll，请检查 vcpkg 安装目录。"
+          }
+          Copy-Item "$opencvBin\opencv_world*.dll" $packageDir -Force
       
       - name: 上传 Windows 构建产物
         uses: actions/upload-artifact@v4
         with:
           name: bobo-ro-ctd-windows
-          path: target/release/bobo-ro-ctd.exe
+          path: target/release/package
