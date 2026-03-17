@@ -55,6 +55,64 @@ pub fn capture_frame_bgr(capturer: &mut Capturer) -> opencv::Result<Mat> {
     Ok(mat_bgr)
 }
 
+/// 从已有的 Capturer 中获取一帧，并按目标高度缩放后转成 OpenCV BGR Mat
+/// target_height <= 0 时不缩放，保持原始分辨率
+pub fn capture_frame_bgr_scaled(
+    capturer: &mut Capturer,
+    target_height: i32,
+) -> opencv::Result<Mat> {
+    let width = capturer.width() as i32;
+    let height = capturer.height() as i32;
+
+    let frame = loop {
+        match capturer.frame() {
+            Ok(frame) => break frame,
+            Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
+                thread::sleep(Duration::from_millis(10));
+                continue;
+            }
+            Err(e) => panic!("failed to capture frame: {}", e),
+        }
+    };
+
+    let bytes = frame.to_vec();
+    let mat_1d = Mat::from_slice(&bytes)?;
+    let mat_bgra = mat_1d.reshape(4, height)?;
+
+    let mut mat_bgr = Mat::default();
+    // 先缩放后转色，减少后续像素处理量。
+    if target_height > 0 && height > target_height {
+        let scale = target_height as f64 / height as f64;
+        let target_width = (width as f64 * scale).round() as i32;
+        let mut scaled_bgra = Mat::default();
+        imgproc::resize(
+            &mat_bgra,
+            &mut scaled_bgra,
+            core::Size::new(target_width, target_height),
+            0.0,
+            0.0,
+            imgproc::INTER_AREA,
+        )?;
+        imgproc::cvt_color(
+            &scaled_bgra,
+            &mut mat_bgr,
+            imgproc::COLOR_BGRA2BGR,
+            0,
+            AlgorithmHint::ALGO_HINT_DEFAULT,
+        )?;
+    } else {
+        imgproc::cvt_color(
+            &mat_bgra,
+            &mut mat_bgr,
+            imgproc::COLOR_BGRA2BGR,
+            0,
+            AlgorithmHint::ALGO_HINT_DEFAULT,
+        )?;
+    }
+
+    Ok(mat_bgr)
+}
+
 fn normalized(filename: String) -> String {
     filename.replace(['|', '\\', ':', '/'], "")
 }
@@ -86,15 +144,19 @@ pub fn count_red_blocks(src: &Mat) -> opencv::Result<usize> {
     let target_width = (original_width as f64 * scale).round() as i32;
 
     let mut small = Mat::default();
-    imgproc::resize(
-        src,
-        &mut small,
-        core::Size::new(target_width, target_height),
-        0.0, // 按目标尺寸缩放，不再使用缩放因子
-        0.0,
-        imgproc::INTER_AREA,
-    )?;
-    let src = &small;
+    let src = if original_height > target_height {
+        imgproc::resize(
+            src,
+            &mut small,
+            core::Size::new(target_width, target_height),
+            0.0, // 按目标尺寸缩放，不再使用缩放因子
+            0.0,
+            imgproc::INTER_AREA,
+        )?;
+        &small
+    } else {
+        src
+    };
 
     // 1. BGR -> HSV
     let mut hsv = Mat::default();
