@@ -30,6 +30,13 @@ cargo build --release
 
 **工作流文件**: `.github/workflows/cross-compile.yml`
 
+打包产物会包含：
+- `bobo-ro-ctd.exe`
+- `assets/fonts/NotoSansSC-Regular.otf`
+- `assets/voice/*`（若存在）
+- `config/config.toml`（若存在）
+- OpenCV 运行时 DLL
+
 ---
 
 ## 选项 3: 使用 Docker 在 macOS 上构建（实验性）
@@ -96,3 +103,18 @@ brew install mingw-w64
 # Ubuntu/Debian
 sudo apt-get install mingw-w64
 ```
+
+### "Cannot upload assets to an immutable release"
+
+如果发布阶段出现：
+
+`Cannot upload assets to an immutable release`
+
+说明同一个 tag 对应的 Release 已经存在且不可变。
+
+处理方式：
+1. 使用新 tag（推荐），例如 `v0.2.2`
+2. 或删除原 Release 后重新触发工作流
+3. 推送 tag 需要单独执行：
+   - `git push origin <tag>`
+   - 或 `git push origin --tags`

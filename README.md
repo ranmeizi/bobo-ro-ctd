@@ -9,8 +9,14 @@
 - **实时 UI**: 使用 egui 框架打造的现代化界面
 - **可配置参数**:
   - 方块阈值（10-300）
+  - 方块最小/最大宽度（用于过滤识别目标）
   - 倒数秒数（0-60 秒）
   - 声音提醒开关
+- **调试能力**:
+  - Debug 独立窗口显示二值化结果（1/2 缩放图）
+  - Windows 下可通过 Debug 开关控制控制台显示/隐藏
+- **倒计时报音**:
+  - 5、4、3、2、1 秒语音播报（跨平台，Windows/macOS）
 - **跨平台**: 支持 macOS 和 Windows
 
 ## 📋 系统要求
@@ -53,8 +59,8 @@ cargo build --release
 
 **选项 2: 使用 GitHub Actions（自动化）**
 - 推送代码到 GitHub
-- 自动在 Windows 环境编译
-- Actions 标签页下载 .exe 文件
+- 自动在 Windows 环境编译并打包
+- Actions 标签页下载完整打包目录
 
 **选项 3: 使用 Docker（macOS）**
 ```bash
@@ -70,11 +76,19 @@ chmod +x build-windows.sh
 ```
 src/
 ├── main.rs           # 应用入口
+├── config.rs         # 配置文件读写
 ├── ui/mod.rs         # egui 用户界面
 └── vision/
     ├── mod.rs        # Vision 模块
     ├── util.rs       # 屏幕采集和图像处理工具
     └── task.rs       # 后台任务处理
+
+assets/
+├── fonts/            # 字体资源
+└── voice/            # 倒计时语音（1~5）
+
+config/
+└── config.toml       # 默认配置文件（会被打包）
 ```
 
 ## 🏗️ 构建工件
@@ -86,7 +100,12 @@ src/
 
 **Windows**:
 - 直接编译: `target/release/bobo-ro-ctd.exe`
-- 交叉编译: `target/x86_64-pc-windows-gnu/release/bobo-ro-ctd.exe`
+- GitHub Actions 打包目录: `target/release/package/`
+  - `bobo-ro-ctd.exe`
+  - `assets/fonts/NotoSansSC-Regular.otf`
+  - `assets/voice/*`
+  - `config/config.toml`
+  - OpenCV 运行时 DLL
 
 ## 📦 依赖项
 
@@ -94,8 +113,10 @@ src/
 - **eframe** 0.33.3 - egui 窗口支持
 - **opencv** 0.98.1 - 计算机视觉
 - **scrap** 0.5 - 屏幕采集（macOS）
+- **rodio** 0.21 - 跨平台音频播放
 - **image** 0.25 - 图像处理
 - **fs_extra** 1.3.0 - 文件操作
+- **serde + toml** - 配置文件序列化
 
 ## 🔧 开发工具
 
@@ -131,12 +152,30 @@ docker run --rm -v $(pwd)/output:/output bobo-ro-ctd-builder
 1. **启动应用**: 运行编译好的可执行文件
 2. **设置参数**:
    - 方块个数：调整红色方块检测的阈值
+   - 最小宽度/最大宽度：限制有效方块尺寸
    - 倒数秒数：设置倒计时时长（秒）
    - 播放声音：启用/禁用语音提醒
-3. **开始监听**: 点击"开始"按钮
-4. **停止监听**: 点击"停止"按钮
+3. **调试查看**（可选）: 点击 `Debug` 按钮打开独立调试窗口
+4. **开始监听**: 点击"开始"按钮
+5. **停止监听**: 点击"停止"按钮
 
 当检测到红色方块数量超过设置的阈值时，应用会自动开始倒计时。
+
+### 配置文件
+
+- 程序启动时会读取：`config/config.toml`
+- 运行过程中参数变更会定时写回（并在退出时兜底保存）
+- 打包发布时会包含默认 `config/config.toml`
+
+### 语音文件命名
+
+将以下文件放入 `assets/voice/`（任一常见格式）：
+
+- `1.mp3` / `1.wav` / `1.ogg` / `1.m4a` / `1.flac`
+- `2.*`
+- `3.*`
+- `4.*`
+- `5.*`
 
 ## 🐛 故障排除
 
@@ -169,6 +208,16 @@ opencv_version
 2. 清理构建: `cargo clean`
 3. 重新构建: `cargo build --release`
 
+### Release 上传失败：`Cannot upload assets to an immutable release`
+
+这是 GitHub 对同一 tag 的 Release 资产不可覆盖导致的。
+
+建议：
+
+1. 使用新 tag 发布（例如 `v0.2.2`）
+2. 或先删除对应 Release 再重发
+3. 推 tag 需要单独执行：`git push origin <tag>` 或 `git push origin --tags`
+
 ## 📝 许可证
 
 [Your License Here]
@@ -184,4 +233,4 @@ opencv_version
 
 ---
 
-**最后更新**: 2026 年 3 月 11 日
+**最后更新**: 2026 年 4 月 1 日
