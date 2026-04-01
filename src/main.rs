@@ -3,6 +3,7 @@
 use opencv;
 
 mod vision;
+mod config;
 mod ui;
 
 fn main() {

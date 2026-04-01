@@ -65,12 +65,28 @@ jobs:
           $packageDir = "target/release/package"
           New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
           New-Item -ItemType Directory -Force -Path "$packageDir/assets/fonts" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$packageDir/assets/voice" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$packageDir/config" | Out-Null
 
           # 1) exe 放到打包根目录
           Copy-Item "target/release/bobo-ro-ctd.exe" "$packageDir/bobo-ro-ctd.exe" -Force
 
           # 2) 字体按相对路径放到 exe 同层下的 assets/fonts/
           Copy-Item "assets/fonts/NotoSansSC-Regular.otf" "$packageDir/assets/fonts/NotoSansSC-Regular.otf" -Force
+
+          # 2.1) 倒计时语音资源按相对路径放到 exe 同层下的 assets/voice/
+          if (Test-Path "assets/voice") {
+            Copy-Item "assets/voice/*" "$packageDir/assets/voice/" -Recurse -Force
+          } else {
+            Write-Host "assets/voice not found, skip voice assets copy."
+          }
+
+          # 2.2) 默认配置文件放到 exe 同层下的 config/
+          if (Test-Path "config/config.toml") {
+            Copy-Item "config/config.toml" "$packageDir/config/config.toml" -Force
+          } else {
+            Write-Host "config/config.toml not found, skip config copy."
+          }
 
           # 3) 仅使用项目内置 DLL，并同步到构建目录 target/release
           $customDlls = @(

@@ -133,6 +133,26 @@ fn test_screen_capture() {
 }
 
 pub fn count_red_blocks(src: &Mat) -> opencv::Result<usize> {
+    Ok(analyze_red_blocks(src, 5.0, 50.0, false)?.count)
+}
+
+pub struct DebugMask {
+    pub width: usize,
+    pub height: usize,
+    pub gray_pixels: Vec<u8>,
+}
+
+pub struct RedBlockAnalysis {
+    pub count: usize,
+    pub debug_mask_half: Option<DebugMask>,
+}
+
+pub fn analyze_red_blocks(
+    src: &Mat,
+    block_min_width: f32,
+    block_max_width: f32,
+    debug: bool,
+) -> opencv::Result<RedBlockAnalysis> {
     // 优化性能：按固定高度等比例缩放后再计算
     let src_size = src.size()?;
     let original_width = src_size.width;
@@ -188,9 +208,28 @@ pub fn count_red_blocks(src: &Mat) -> opencv::Result<usize> {
     let mut mask = Mat::default();
     core::bitwise_or(&mask1, &mask2, &mut mask, &core::no_array());
 
-    // 3. 如需调试红色提取效果，可手动打开写文件代码
-    // let imwrite_params: Vector<i32> = Vector::new();
-    // let _ok = imgcodecs::imwrite("target/mask.png", &mask, &imwrite_params)?;
+    // 3. 仅 Debug 打开时，才额外生成展示用二值图（缩小 1/2）
+    let debug_mask_half = if debug {
+        let mask_size = mask.size()?;
+        let half_w = (mask_size.width / 2).max(1);
+        let half_h = (mask_size.height / 2).max(1);
+        let mut half = Mat::default();
+        imgproc::resize(
+            &mask,
+            &mut half,
+            core::Size::new(half_w, half_h),
+            0.0,
+            0.0,
+            imgproc::INTER_NEAREST,
+        )?;
+        Some(DebugMask {
+            width: half_w as usize,
+            height: half_h as usize,
+            gray_pixels: half.data_bytes()?.to_vec(),
+        })
+    } else {
+        None
+    };
 
     // 4. 使用连通域标记，统计“近似正方形”的白色块个数
     let mut labels = Mat::default();
@@ -216,14 +255,14 @@ pub fn count_red_blocks(src: &Mat) -> opencv::Result<usize> {
         if area < 36.0 {
             continue;
         }
-        // 宽高都必须为正
-        if w <= 5.0 || h <= 5.0 {
+        // 按配置过滤过小方块
+        if w <= block_min_width || h <= block_min_width {
             continue;
         }
 
-        // 过滤掉太大的
-        if w >= 50.0 || h >= 50.0 {
-            continue
+        // 按配置过滤过大方块
+        if w >= block_max_width || h >= block_max_width {
+            continue;
         }
 
         // 宽高比接近 1：近似正方形
@@ -235,7 +274,10 @@ pub fn count_red_blocks(src: &Mat) -> opencv::Result<usize> {
 
     println!("红色地块数量: {}", count);
 
-    Ok(count)
+    Ok(RedBlockAnalysis {
+        count,
+        debug_mask_half,
+    })
 }
 
 #[test]

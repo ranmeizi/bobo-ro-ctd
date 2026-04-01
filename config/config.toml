@@ -1,0 +1,5 @@
+block_threshold = 60
+counting_seconds = 29
+play_voice = false
+block_min_width = 5
+block_max_width = 50
