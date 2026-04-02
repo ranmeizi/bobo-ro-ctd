@@ -125,9 +125,12 @@ jobs:
           cd bobo-ro-ctd-windows
           zip -r ../bobo-ro-ctd-windows.zip .
 
+      # 注意：GitHub 开启「不可变 Release」后，不能向已存在的同一 tag 的 Release 再次上传/替换附件。
+      # 若需重新发包：请使用新 tag（如 v0.2.3），或先在网页上删除该 Release 后再推送同一 tag 重跑。
+      # allowUpdates: true 会在重跑同一 tag 时触发更新已有 Release，从而报错 immutable。
       - name: 发布 Release 并上传附件
         uses: ncipollo/release-action@v1
         with:
           artifacts: "bobo-ro-ctd-windows.zip"
-          allowUpdates: true
+          allowUpdates: false
           generateReleaseNotes: true
